@@ -1,6 +1,7 @@
 #include "backprop.h"
 #include "layer.h"
 #include "neuron.h"
+#include <mpi.h>
 
 
 layer *lay = NULL;
@@ -13,15 +14,28 @@ float **input;
 float **desired_outputs;
 int num_training_ex;
 int n=1;
+int p,P,tag,rc;
+float *weights;
+float *dweights;
+float *bias;
+int s=0;
+MPI_Status  status;
 
-int main(void)
+
+int main(int argc,char * argv[])
 {
     int i;
+    rc = MPI_Init(&argc,&argv);
+    rc = MPI_Comm_size(MPI_COMM_WORLD,&P);
+    rc = MPI_Comm_rank(MPI_COMM_WORLD,&p);
+    tag =45;
+
 
     srand(time(0));
 
     printf("Enter the number of Layers in Neural Network:\n");
     scanf("%d",&num_layers);
+
 
     num_neurons = (int*) malloc(num_layers * sizeof(int));
     memset(num_neurons,0,num_layers *sizeof(int));
@@ -34,7 +48,16 @@ int main(void)
     }
 
     printf("\n");
+    for(int i=0; i<num_layers;i++){
+        if(s<num_neurons[i]) {
+            s = num_neurons[i];
+        }
+    }
 
+    float tab[num_layers][s][s];
+    weights=tab;
+    float tab2[num_layers][s][s];
+    dweights=tab2;
     // Initialize the neural network module
     if(init()!= SUCCESS_INIT)
     {
@@ -149,19 +172,19 @@ int create_architecture()
 
     for(i=0;i<num_layers;i++)
     {
-        lay[i] = create_layer(num_neurons[i]);      
+        lay[i] = create_layer(num_neurons[i]);
         lay[i].num_neu = num_neurons[i];
         printf("Created Layer: %d\n", i+1);
         printf("Number of Neurons in Layer %d: %d\n", i+1,lay[i].num_neu);
 
         for(j=0;j<num_neurons[i];j++)
         {
-            if(i < (num_layers-1)) 
+            if(i < (num_layers-1))
             {
                 lay[i].neu[j] = create_neuron(num_neurons[i+1]);
             }
 
-            printf("Neuron %d in Layer %d created\n",j+1,i+1);  
+            printf("Neuron %d in Layer %d created\n",j+1,i+1);
         }
         printf("\n");
     }
@@ -169,11 +192,13 @@ int create_architecture()
     printf("\n");
 
     // Initialize the weights
-    if(initialize_weights() != SUCCESS_INIT_WEIGHTS)
-    {
-        printf("Error Initilizing weights...\n");
-        return ERR_CREATE_ARCHITECTURE;
+    if(p==0) {
+        if (initialize_weights() != SUCCESS_INIT_WEIGHTS) {
+            printf("Error Initilizing weights...\n");
+            return ERR_CREATE_ARCHITECTURE;
+        }
     }
+
 
     return SUCCESS_CREATE_ARCHITECTURE;
 }
@@ -198,14 +223,18 @@ int initialize_weights(void)
             for(k=0;k<num_neurons[i+1];k++)
             {
                 // Initialize Output Weights for each neuron
+
                 lay[i].neu[j].out_weights[k] = ((double)rand())/((double)RAND_MAX);
+                weights[i][j][k]=lay[i].neu[j].out_weights[k];
                 printf("%d:w[%d][%d]: %f\n",k,i,j, lay[i].neu[j].out_weights[k]);
                 lay[i].neu[j].dw[k] = 0.0;
+                dweights[i][j][k]=0.0;
             }
 
             if(i>0) 
             {
                 lay[i].neu[j].bias = ((double)rand())/((double)RAND_MAX);
+                bias[i][j]=lay[i].neu[j].bias;
             }
         }
     }   
@@ -228,14 +257,26 @@ void train_neural_net(void)
     // Gradient Descent
     for(it=0;it<20000;it++)
     {
+        if(p==0){
+            for(int j=1;j<P;j++){
+                rc = MPI_Send(weights, num_layers*s*s*sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD);
+                rc = MPI_Send(bias, num_layers*s*sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD);
+            }
+        }else{
+
+            rc = MPI_Recv(weights, num_layers*s*s*sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD, &status);
+            rc = MPI_Recv(bias, num_layers*s*sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD, &status);
+        }
+        //TODO put weights in neurons
         for(i=0;i<num_training_ex;i++)
         {
             feed_input(i);
             forward_prop();
             compute_cost(i);
             back_prop(i);
-            update_weights();
         }
+        //TODO gather all dw in node 0
+        update_weights();//TODO Node 0 only
     }
 }
 
