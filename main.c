@@ -281,18 +281,27 @@ void train_neural_net(void)
             back_prop(i);
         }
         /if(p==0){
-            //TODO IMPROVE SCATRING METHOD TO be in log(N)
-            for(int j=1;j<P;j++){
-                float tmpWeights[num][][]=//TODO finish this part
-                rc = MPI_Recv(weights, num_layers*s*s*sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD, &status);
-                rc = MPI_Recv(bias, num_layers*s*sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD, &status);
+            //TODO IMPROVE gathering METHOD TO be in log(N)
+            for(int s=1;s<P;s++) {
+                rc = MPI_Recv(dweights, num_layers * s * s * sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD,
+                              &status);
+                rc = MPI_Recv(dbias, num_layers * s * sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD, &status);
+                for (i = 0; i < num_layers - 1; i++) {
+                    for (j = 0; j < num_neurons[i]; j++) {
+                        for (k = 0; k < num_neurons[i + 1]; k++) {
+                            lay[i].neu[j].dw[k] += dweights[i][j][k];
+                        }
+                        lay[i].neu[j].dbias += dbias[i][j][k];
+                    }
+                }
             }
+            update_weights();
         }else{
 
             rc = MPI_Send(dweights, num_layers*s*s*sizeof(float), MPI_REAL, 0, tag, MPI_COMM_WORLD);
             rc = MPI_Send(dbias, num_layers*s*sizeof(float), MPI_REAL, 0, tag, MPI_COMM_WORLD);
-        }/TODO gather all dw in node 0
-        update_weights();//TODO Node 0 only
+        }
+
     }
 }
 
@@ -435,7 +444,7 @@ void back_prop(int p)
 void test_nn(void) 
 {
     int i;
-    while(1)
+    while(1)//TODO
     {
         printf("Enter input to test:\n");
 
