@@ -4,9 +4,13 @@
 #include <mpi.h>
 
 
+#define NUM_LAYER 7
+#define NUM_NEURONS_0 100
+#define NUM_NEURONS_1 70
+
 layer *lay = NULL;
-int num_layers =7;
-int num_neurons[]={100,70,50,30,20,10,1};
+int num_layers =NUM_LAYER;
+int num_neurons[]={NUM_NEURONS_0,NUM_NEURONS_1,50,30,20,10,1};
 float alpha;
 float *cost;
 float full_cost;
@@ -15,10 +19,10 @@ float **desired_outputs;
 int num_training_ex;
 int n=1;
 int p,P,tag,rc;
-float weights[num_layers][num_neurons[0]][num_neurons[1]];
-float dweights[num_layers][num_neurons[0]][num_neurons[1]];
-float bias[num_layers][num_neurons[0]];
-float dbias[num_layers][num_neurons[0]];
+float weights[NUM_LAYER][NUM_NEURONS_0][NUM_NEURONS_1];
+float dweights[NUM_LAYER][NUM_NEURONS_0][NUM_NEURONS_1];
+float bias[NUM_LAYER][NUM_NEURONS_0];
+float dbias[NUM_LAYER][NUM_NEURONS_0];
 int s=0;
 MPI_Status  status;
 
@@ -127,6 +131,7 @@ void  get_inputs()
             for(j=0;j<num_neurons[0];j++)
             {
                 scanf("%f",&input[i][j]);
+                printf("%f\n",input[i][j]);
                 
             }
             printf("\n");
@@ -144,6 +149,7 @@ void get_desired_outputs()
         {
             printf("Enter the Desired Outputs (Labels) for training example[%d]: \n",i);
             scanf("%f",&desired_outputs[i][j]);
+            printf("%f\n",desired_outputs[i][j]);
             printf("\n");
         }
     }
@@ -157,7 +163,7 @@ void feed_input(int i)
     for(j=0;j<num_neurons[0];j++)
     {
         lay[0].neu[j].actv = input[i][j];
-        printf("Input: %f\n",lay[0].neu[j].actv);
+        //printf("Input: %f\n",lay[0].neu[j].actv);
     }
 }
 
@@ -270,28 +276,28 @@ void train_neural_net(void)
                 for(int k=0;k<num_neurons[i+1];k++){
                     lay[i].neu[j].out_weights[k]=weights[i][j][k];
                 }
-                lay[i].neu[j].bias=bias[i][j]
+                lay[i].neu[j].bias=bias[i][j];
             }
         }
         for(i=0;i<num_training_ex;i++)
         {
             feed_input(i);
-            forward_prop();
+            forward_prop(0);
             compute_cost(i);
             back_prop(i);
         }
-        /if(p==0){
+        if(p==0){
             //TODO IMPROVE gathering METHOD TO be in log(N)
             for(int s=1;s<P;s++) {
                 rc = MPI_Recv(dweights, num_layers * s * s * sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD,
                               &status);
                 rc = MPI_Recv(dbias, num_layers * s * sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD, &status);
-                for (i = 0; i < num_layers - 1; i++) {
-                    for (j = 0; j < num_neurons[i]; j++) {
-                        for (k = 0; k < num_neurons[i + 1]; k++) {
+                for (int i = 0; i < num_layers - 1; i++) {
+                    for (int j = 0; j < num_neurons[i]; j++) {
+                        for (int k = 0; k < num_neurons[i + 1]; k++) {
                             lay[i].neu[j].dw[k] += dweights[i][j][k];
                         }
-                        lay[i].neu[j].dbias += dbias[i][j][k];
+                        lay[i].neu[j].dbias += dbias[i][j];
                     }
                 }
             }
@@ -327,7 +333,7 @@ void update_weights(void)
     }   
 }
 
-void forward_prop(void)
+void forward_prop(int out)
 {
     int i,j,k;
 
@@ -360,8 +366,10 @@ void forward_prop(void)
             else
             {
                 lay[i].neu[j].actv = 1/(1+exp(-lay[i].neu[j].z));
-                printf("Output: %d\n", (int)round(lay[i].neu[j].actv));
-                printf("\n");
+                if(out) {
+                    printf("Output: %d\n", (int) round(lay[i].neu[j].actv));
+                    //printf("\n");
+                }
             }
         }
     }
@@ -444,7 +452,10 @@ void back_prop(int p)
 void test_nn(void) 
 {
     int i;
-    while(1)//TODO
+    int number_of_tests ;
+    scanf("%d",&number_of_tests);
+
+    for(int j=0;j<number_of_tests;j++)
     {
         printf("Enter input to test:\n");
 
@@ -452,7 +463,7 @@ void test_nn(void)
         {
             scanf("%f",&lay[0].neu[i].actv);
         }
-        forward_prop();
+        forward_prop(1);
     }
 }
 
