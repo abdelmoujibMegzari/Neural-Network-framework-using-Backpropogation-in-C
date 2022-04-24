@@ -25,7 +25,7 @@ int create_architecture(void);
 int initialize_weights(void);
 void feed_input(int i);
 void train_neural_net(void);
-void forward_prop(void);
+void forward_prop(int out);
 void compute_cost(int i);
 void back_prop(int p);
 void update_weights(void);
