@@ -46,6 +46,7 @@ int main(void)
     scanf("%f",&alpha);
     printf("\n");
 
+    /****** Mofidy this part to take inputs from file directly ******/
     printf("Enter the number of training examples: \n");
     scanf("%d",&num_training_ex);
     printf("\n");
@@ -55,20 +56,23 @@ int main(void)
     {
         input[i] = (float*)malloc(num_neurons[0] * sizeof(float));
     }
-
+    /***************************************************************/
+    
+    /************************Desired outputs Modify as well ***********/
     desired_outputs = (float**) malloc(num_training_ex* sizeof(float*));
     for(i=0;i<num_training_ex;i++)
     {
         desired_outputs[i] = (float*)malloc(num_neurons[num_layers-1] * sizeof(float));
     }
+    /******************************************************************/
 
     cost = (float *) malloc(num_neurons[num_layers-1] * sizeof(float));
     memset(cost,0,num_neurons[num_layers-1]*sizeof(float));
 
-    // Get Training Examples
+    // Get Training Examples #Modify
     get_inputs();
 
-    // Get Output Labels
+    // Get Output Labels #Modify
     get_desired_outputs();
 
     train_neural_net();

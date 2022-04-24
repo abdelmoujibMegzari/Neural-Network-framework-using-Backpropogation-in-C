@@ -1,0 +1,5 @@
+
+#define MAGIC_NUMBER 2051
+#define NUM_ITEMS 60000
+#define NUM_ROWS 28
+#define NUM_COL 28
