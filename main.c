@@ -285,6 +285,7 @@ void train_neural_net(void)
             forward_prop(0);
             compute_cost(i);
             back_prop(i);
+            update_weights();
         }
         if(p==0){
             //TODO IMPROVE gathering METHOD TO be in log(N)
@@ -301,7 +302,7 @@ void train_neural_net(void)
                     }
                 }
             }
-            update_weights();
+            //update_weights();
         }else{
 
             rc = MPI_Send(dweights, num_layers*s*s*sizeof(float), MPI_REAL, 0, tag, MPI_COMM_WORLD);
