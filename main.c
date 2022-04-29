@@ -260,6 +260,8 @@ void train_neural_net(void)
     // Gradient Descent
     for(it=0;it<20000;it++)
     {
+        printf("%d\n",it);
+        int first_run=1;
         if(p==0){
             //TODO IMPROVE SCATRING METHOD TO be in log(N)
             for(int j=1;j<P;j++){
@@ -270,13 +272,13 @@ void train_neural_net(void)
 
             rc = MPI_Recv(weights, num_layers*s*s*sizeof(float), MPI_REAL, 0, tag, MPI_COMM_WORLD, &status);
             rc = MPI_Recv(bias, num_layers*s*sizeof(float), MPI_REAL, 0, tag, MPI_COMM_WORLD, &status);
-        }
-        for(int i=0;i<num_layers-1;i++){
-            for(int j=0; j<num_neurons[i]; j++){
-                for(int k=0;k<num_neurons[i+1];k++){
-                    lay[i].neu[j].out_weights[k]=weights[i][j][k];
+            for(int i=0;i<num_layers-1;i++){
+                for(int j=0; j<num_neurons[i]; j++){
+                    for(int k=0;k<num_neurons[i+1];k++){
+                        lay[i].neu[j].out_weights[k]=weights[i][j][k];
+                    }
+                    lay[i].neu[j].bias=bias[i][j];
                 }
-                lay[i].neu[j].bias=bias[i][j];
             }
         }
         for(i=0;i<num_training_ex;i++)
@@ -284,8 +286,8 @@ void train_neural_net(void)
             feed_input(i);
             forward_prop(0);
             compute_cost(i);
-            back_prop(i);
-            update_weights();
+            back_prop(i,first_run);
+            first_run=0;
         }
         if(p==0){
             //TODO IMPROVE gathering METHOD TO be in log(N)
@@ -297,12 +299,13 @@ void train_neural_net(void)
                     for (int j = 0; j < num_neurons[i]; j++) {
                         for (int k = 0; k < num_neurons[i + 1]; k++) {
                             lay[i].neu[j].dw[k] += dweights[i][j][k];
+
                         }
                         lay[i].neu[j].dbias += dbias[i][j];
                     }
                 }
             }
-            //update_weights();
+            update_weights();
         }else{
 
             rc = MPI_Send(dweights, num_layers*s*s*sizeof(float), MPI_REAL, 0, tag, MPI_COMM_WORLD);
@@ -396,7 +399,7 @@ void compute_cost(int i)
 }
 
 // Back Propogate Error
-void back_prop(int p)
+void back_prop(int p, int first_run)
 {
     int i,j,k;
 
@@ -408,13 +411,17 @@ void back_prop(int p)
         for(k=0;k<num_neurons[num_layers-2];k++)
         {   
             lay[num_layers-2].neu[k].dw[j] = (lay[num_layers-1].neu[j].dz * lay[num_layers-2].neu[k].actv);
-            dweights[num_layers-2][k][j] =lay[num_layers-2].neu[k].dw[j];
+            if(first_run)
+                dweights[num_layers-2][k][j] =0;
+            dweights[num_layers-2][k][j] +=lay[num_layers-2].neu[k].dw[j];
             lay[num_layers-2].neu[k].dactv = lay[num_layers-2].neu[k].out_weights[j] * lay[num_layers-1].neu[j].dz;
             //TODO do we also need d actv to update weights.
         }
             
         lay[num_layers-1].neu[j].dbias = lay[num_layers-1].neu[j].dz;
-        dbias[num_layers-1][j]=lay[num_layers-1].neu[j].dbias;
+        if(first_run)
+            dbias[num_layers-1][j]=0;
+        dbias[num_layers-1][j]+=lay[num_layers-1].neu[j].dbias;
 
     }
 
@@ -435,7 +442,9 @@ void back_prop(int p)
             for(k=0;k<num_neurons[i-1];k++)
             {
                 lay[i-1].neu[k].dw[j] = lay[i].neu[j].dz * lay[i-1].neu[k].actv;
-                dweights[i-1][k][j]=lay[i-1].neu[k].dw[j];
+                if(first_run)
+                    dweights[i-1][k][j]=0;
+                dweights[i-1][k][j]+=lay[i-1].neu[k].dw[j];
                 
                 if(i>1)
                 {
@@ -444,7 +453,9 @@ void back_prop(int p)
             }
 
             lay[i].neu[j].dbias = lay[i].neu[j].dz;
-            dbias[i][j]=lay[i].neu[j].dbias;
+            if(first_run)
+                dbias[i][j]=0;
+            dbias[i][j]+=lay[i].neu[j].dbias;
         }
     }
 }
@@ -463,6 +474,7 @@ void test_nn(void)
         for(i=0;i<num_neurons[0];i++)
         {
             scanf("%f",&lay[0].neu[i].actv);
+            printf("%f", lay[0].neu[i].actv);
         }
         forward_prop(1);
     }
