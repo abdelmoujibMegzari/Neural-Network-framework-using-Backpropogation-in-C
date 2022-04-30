@@ -7,5 +7,5 @@
 #define NUM_COL 28
 
 
-void loadLabels(int rank, int proc, unsigned char **data, int isTrain);
-void loadData(int rank, int proc, unsigned char **data, int isTrain);
+void loadLabels(int rank, int proc, char **data, int isTrain);
+void loadData(int rank, int proc, char **data, int isTrain);

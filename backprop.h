@@ -23,14 +23,14 @@ int dinit(void);
 
 int create_architecture(void);
 int initialize_weights(void);
-void feed_input(int i);
+void feed_input(int i, unsigned char **data);
 void train_neural_net(void);
 void forward_prop(void);
 void compute_cost(int i);
 void back_prop(int p);
 void update_weights(void);
-void get_inputs(void);
-void get_desired_outputs(void);
+void get_inputs(unsigned char ** inputs, int isTrain);
+void get_desired_outputs(unsigned char ** labels, int isTrain);
 void test_nn(void);
 
 int initialize_dummy_weights(void);

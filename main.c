@@ -2,6 +2,8 @@
 #include "layer.h"
 #include "neuron.h"
 
+#include "readData.h"
+
 
 layer *lay = NULL;
 int num_layers;
@@ -9,31 +11,34 @@ int *num_neurons;
 float alpha;
 float *cost;
 float full_cost;
-float **input;
-float **desired_outputs;
+unsigned char **input;
+unsigned char **desired_outputs;
+unsigned char **input_test;
+unsigned char **desired_outputs_test;
 int num_training_ex;
 int n=1;
-
+int num_testSamples_ex = 2000;
 int main(void)
 {
     int i;
 
-    srand(time(0));
 
-    printf("Enter the number of Layers in Neural Network:\n");
-    scanf("%d",&num_layers);
+    /**** Initialize parameters ****/
+    num_layers = 3;
 
     num_neurons = (int*) malloc(num_layers * sizeof(int));
-    memset(num_neurons,0,num_layers *sizeof(int));
+    memset(num_neurons, 0,num_layers *sizeof(int));
 
-    // Get number of neurons per layer
-    for(i=0;i<num_layers;i++)
-    {
-        printf("Enter number of neurons in layer[%d]: \n",i+1);
-        scanf("%d",&num_neurons[i]);
-    }
+    // Neurons per layer
+    num_neurons[0] = NUM_COL*NUM_ROWS;
+    num_neurons[1] = 32;
+    num_neurons[2] = 10;
 
-    printf("\n");
+    /* => Total Number of Parameters is 25,450 */ 
+
+    // Learning rate
+    alpha = 0.15;
+
 
     // Initialize the neural network module
     if(init()!= SUCCESS_INIT)
@@ -42,27 +47,23 @@ int main(void)
         exit(0);
     }
 
-    printf("Enter the learning rate (Usually 0.15): \n");
-    scanf("%f",&alpha);
-    printf("\n");
+
+    int num_training_ex = 2000;
+
 
     /****** Mofidy this part to take inputs from file directly ******/
-    printf("Enter the number of training examples: \n");
-    scanf("%d",&num_training_ex);
-    printf("\n");
 
-    input = (float**) malloc(num_training_ex * sizeof(float*));
+    input = (unsigned char **) malloc(num_training_ex * sizeof(unsigned char *));
     for(i=0;i<num_training_ex;i++)
     {
-        input[i] = (float*)malloc(num_neurons[0] * sizeof(float));
+        input[i] = (unsigned char *) malloc(num_neurons[0] * sizeof(unsigned char));
     }
-    /***************************************************************/
     
     /************************Desired outputs Modify as well ***********/
-    desired_outputs = (float**) malloc(num_training_ex* sizeof(float*));
-    for(i=0;i<num_training_ex;i++)
+    desired_outputs = (unsigned char **) malloc(num_training_ex* sizeof(unsigned char*));
+    for(i=0; i<num_training_ex; i++)
     {
-        desired_outputs[i] = (float*)malloc(num_neurons[num_layers-1] * sizeof(float));
+        desired_outputs[i] = (unsigned char *) malloc(num_neurons[num_layers-1] * sizeof(unsigned char));
     }
     /******************************************************************/
 
@@ -70,12 +71,32 @@ int main(void)
     memset(cost,0,num_neurons[num_layers-1]*sizeof(float));
 
     // Get Training Examples #Modify
-    get_inputs();
+    get_inputs(input, 1);
 
     // Get Output Labels #Modify
-    get_desired_outputs();
+    get_desired_outputs(desired_outputs, 1);
 
     train_neural_net();
+
+
+
+    /****** Mofidy this part to take inputs from file directly ******/
+
+    input_test = (unsigned char **) malloc(num_testSamples_ex * sizeof(unsigned char *));
+    for(int i=0;i<num_testSamples_ex;i++)
+    {
+        input_test[i] = (unsigned char *) malloc(num_neurons[0] * sizeof(unsigned char));
+    }
+    
+    /************************Desired outputs Modify as well ***********/
+    desired_outputs_test = (unsigned char **) malloc(num_testSamples_ex* sizeof(unsigned char*));
+    for(int i=0; i<num_testSamples_ex; i++)
+    {
+        desired_outputs_test[i] = (unsigned char *) malloc(num_neurons[num_layers-1] * sizeof(unsigned char));
+    }
+    /******************************************************************/
+
+
     test_nn();
 
     if(dinit()!= SUCCESS_DINIT)
@@ -100,48 +121,27 @@ int init()
 }
 
 //Get Inputs
-void  get_inputs()
+void  get_inputs(unsigned char **dataInput, int isTrain)
 {
-    int i,j;
-
-        for(i=0;i<num_training_ex;i++)
-        {
-            printf("Enter the Inputs for training example[%d]:\n",i);
-
-            for(j=0;j<num_neurons[0];j++)
-            {
-                scanf("%f",&input[i][j]);
-                
-            }
-            printf("\n");
-        }
+    /** Get input training data **/
+    loadData(1, 1, dataInput, isTrain);
 }
 
 //Get Labels
-void get_desired_outputs()
+void get_desired_outputs(unsigned char **labels, int isTrain)
 {
-    int i,j;
-    
-    for(i=0;i<num_training_ex;i++)
-    {
-        for(j=0;j<num_neurons[num_layers-1];j++)
-        {
-            printf("Enter the Desired Outputs (Labels) for training example[%d]: \n",i);
-            scanf("%f",&desired_outputs[i][j]);
-            printf("\n");
-        }
-    }
+    loadLabels(1, 1, labels, isTrain);
 }
 
 // Feed inputs to input layer
-void feed_input(int i)
+void feed_input(int i, unsigned char **inputSet)
 {
     int j;
 
     for(j=0;j<num_neurons[0];j++)
     {
-        lay[0].neu[j].actv = input[i][j];
-        printf("Input: %f\n",lay[0].neu[j].actv);
+        lay[0].neu[j].actv = inputSet[i][j];
+        //printf("Input: %f\n",lay[0].neu[j].actv);
     }
 }
 
@@ -234,12 +234,14 @@ void train_neural_net(void)
     {
         for(i=0;i<num_training_ex;i++)
         {
-            feed_input(i);
+            feed_input(i, input);
             forward_prop();
             compute_cost(i);
             back_prop(i);
             update_weights();
+
         }
+
     }
 }
 
@@ -273,11 +275,11 @@ void forward_prop(void)
     {   
         for(j=0;j<num_neurons[i];j++)
         {
-            lay[i].neu[j].z = lay[i].neu[j].bias;
+            lay[i].neu[j].z = lay[i - 1].neu[j].bias;
 
             for(k=0;k<num_neurons[i-1];k++)
             {
-                lay[i].neu[j].z  = lay[i].neu[j].z + ((lay[i-1].neu[k].out_weights[j])* (lay[i-1].neu[k].actv));
+                lay[i].neu[j].z  = lay[i].neu[j].z + ((lay[i-1].neu[k].out_weights[j]) * (lay[i-1].neu[k].actv));
             }
 
             // Relu Activation Function for Hidden Layers
@@ -336,11 +338,11 @@ void back_prop(int p)
 
         for(k=0;k<num_neurons[num_layers-2];k++)
         {   
-            lay[num_layers-2].neu[k].dw[j] = (lay[num_layers-1].neu[j].dz * lay[num_layers-2].neu[k].actv);
+            lay[num_layers-2].neu[k].dw[j] = lay[num_layers-2].neu[k].dw[j] + (lay[num_layers-1].neu[j].dz * lay[num_layers-2].neu[k].actv);
             lay[num_layers-2].neu[k].dactv = lay[num_layers-2].neu[k].out_weights[j] * lay[num_layers-1].neu[j].dz;
         }
             
-        lay[num_layers-1].neu[j].dbias = lay[num_layers-1].neu[j].dz;           
+        lay[num_layers-1].neu[j].dbias = lay[num_layers-1].neu[j].dbias + lay[num_layers-1].neu[j].dz;           
     }
 
     // Hidden Layers
@@ -359,7 +361,7 @@ void back_prop(int p)
 
             for(k=0;k<num_neurons[i-1];k++)
             {
-                lay[i-1].neu[k].dw[j] = lay[i].neu[j].dz * lay[i-1].neu[k].actv;    
+                lay[i-1].neu[k].dw[j] = lay[i-1].neu[k].dw[j] + lay[i].neu[j].dz * lay[i-1].neu[k].actv;    
                 
                 if(i>1)
                 {
@@ -367,7 +369,7 @@ void back_prop(int p)
                 }
             }
 
-            lay[i].neu[j].dbias = lay[i].neu[j].dz;
+            lay[i].neu[j].dbias = lay[i].neu[j].dbias + lay[i].neu[j].dz;
         }
     }
 }
@@ -375,17 +377,17 @@ void back_prop(int p)
 // Test the trained network
 void test_nn(void) 
 {
-    int i;
-    while(1)
-    {
-        printf("Enter input to test:\n");
+    // Get Training Examples #Modify
+    get_inputs(input_test, 0);
 
-        for(i=0;i<num_neurons[0];i++)
-        {
-            scanf("%f",&lay[0].neu[i].actv);
-        }
+    // Get Output Labels #Modify
+    get_desired_outputs(desired_outputs_test, 0);
+
+    for (int i = 0; i < num_testSamples_ex; i++){
+        feed_input(i, input_test);
         forward_prop();
     }
+
 }
 
 // TODO: Add different Activation functions
@@ -393,8 +395,14 @@ void test_nn(void)
 
 int dinit(void)
 {
-    // TODO:
     // Free up all the structures
+
+    // Free input and output
+    free(input);
+    free(input_test);
+    free(desired_outputs);
+    free(desired_outputs_test);
+
 
     return SUCCESS_DINIT;
 }
