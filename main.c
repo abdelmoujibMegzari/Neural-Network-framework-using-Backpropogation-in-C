@@ -260,13 +260,13 @@ void train_neural_net(void)
     // Gradient Descent
     for(it=0;it<20000;it++)
     {
-        printf("%d\n",it);
+        //printf("%d\n",it);
         int first_run=1;
         if(p==0){
             //TODO IMPROVE SCATRING METHOD TO be in log(N)
             for(int j=1;j<P;j++){
-                rc = MPI_Send(weights, num_layers*s*s*sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD);
-                rc = MPI_Send(bias, num_layers*s*sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD);
+                rc = MPI_Send(weights, num_layers*s*s*sizeof(float), MPI_REAL, j, tag, MPI_COMM_WORLD);
+                rc = MPI_Send(bias, num_layers*s*sizeof(float), MPI_REAL, j, tag, MPI_COMM_WORLD);
             }
         }else{
 
@@ -292,16 +292,24 @@ void train_neural_net(void)
         if(p==0){
             //TODO IMPROVE gathering METHOD TO be in log(N)
             for(int s=1;s<P;s++) {
-                rc = MPI_Recv(dweights, num_layers * s * s * sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD,
+                rc = MPI_Recv(dweights, num_layers * s * s * sizeof(float), MPI_REAL, s, tag, MPI_COMM_WORLD,
                               &status);
-                rc = MPI_Recv(dbias, num_layers * s * sizeof(float), MPI_REAL, i, tag, MPI_COMM_WORLD, &status);
+                rc = MPI_Recv(dbias, num_layers * s * sizeof(float), MPI_REAL, s, tag, MPI_COMM_WORLD, &status);
                 for (int i = 0; i < num_layers - 1; i++) {
                     for (int j = 0; j < num_neurons[i]; j++) {
                         for (int k = 0; k < num_neurons[i + 1]; k++) {
                             lay[i].neu[j].dw[k] += dweights[i][j][k];
+                            //printf("%f, ",dweights[i][j][k]);
 
                         }
                         lay[i].neu[j].dbias += dbias[i][j];
+                    }
+                }
+            }
+            for (int i = 0; i < num_layers - 1; i++) {
+                for (int j = 0; j < num_neurons[i]; j++) {
+                    for (int k = 0; k < num_neurons[i + 1]; k++) {
+                        //printf("%f, ",dweights[i][j][k]);
                     }
                 }
             }
@@ -426,13 +434,16 @@ void back_prop(int p, int first_run)
     }
 
     // Hidden Layers
-    for(i=num_layers-2;i>0;i--)
+    for(i=num_layers-1;i>0;i--)
     {
         for(j=0;j<num_neurons[i];j++)
         {
             if(lay[i].neu[j].z >= 0)
             {
                 lay[i].neu[j].dz = lay[i].neu[j].dactv;
+                //printf("actv %f,\n",lay[i].neu[j].dactv);
+                //printf("z %f,\n",lay[i].neu[j].z);
+                //printf("dz %f,\n",lay[i].neu[j].dz);
             }
             else
             {
@@ -442,10 +453,13 @@ void back_prop(int p, int first_run)
             for(k=0;k<num_neurons[i-1];k++)
             {
                 lay[i-1].neu[k].dw[j] = lay[i].neu[j].dz * lay[i-1].neu[k].actv;
+
+                //printf("actv %f,\n",lay[i-1].neu[k].actv);
                 if(first_run)
                     dweights[i-1][k][j]=0;
                 dweights[i-1][k][j]+=lay[i-1].neu[k].dw[j];
-                
+                //printf("%f,\n",lay[i-1].neu[k].dw[j]);
+
                 if(i>1)
                 {
                     lay[i-1].neu[k].dactv = lay[i-1].neu[k].out_weights[j] * lay[i].neu[j].dz;

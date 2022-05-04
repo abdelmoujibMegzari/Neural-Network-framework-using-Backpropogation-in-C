@@ -18,6 +18,7 @@ for i in range(number_of_samples):
     labels.append(s % 16)
 for i in range(number_of_samples):
     print(labels[i])
+print(number_of_tests)
 for i in range(0,number_of_tests):
     s = 0
     for j in range(lenght_of_sample):
