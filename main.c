@@ -3,21 +3,22 @@
 #include "neuron.h"
 #include <mpi.h>
 
+#include "readData.h"
 
-#define NUM_LAYER 7
-#define NUM_NEURONS_0 100
-#define NUM_NEURONS_1 70
 
 layer *lay = NULL;
-int num_layers =NUM_LAYER;
-int num_neurons[]={NUM_NEURONS_0,NUM_NEURONS_1,50,30,20,10,1};
+int num_layers;
+int *num_neurons;
 float alpha;
 float *cost;
 float full_cost;
-float **input;
-float **desired_outputs;
+unsigned char **input;
+unsigned char **desired_outputs;
+unsigned char **input_test;
+unsigned char **desired_outputs_test;
 int num_training_ex;
 int n=1;
+int num_testSamples_ex = 2000;
 int p,P,tag,rc;
 float weights[NUM_LAYER][NUM_NEURONS_0][NUM_NEURONS_1];
 float dweights[NUM_LAYER][NUM_NEURONS_0][NUM_NEURONS_1];
@@ -36,28 +37,23 @@ int main(int argc,char * argv[])
     tag =45;
 
 
-    srand(time(0));
 
-    //printf("Enter the number of Layers in Neural Network:\n");
-    //scanf("%d",&num_layers);
+    /**** Initialize parameters ****/
+    num_layers = 3;
 
+    num_neurons = (int*) malloc(num_layers * sizeof(int));
+    memset(num_neurons, 0,num_layers *sizeof(int));
 
-    //num_neurons = (int*) malloc(num_layers * sizeof(int));
-    //memset(num_neurons,0,num_layers *sizeof(int));
+    // Neurons per layer
+    num_neurons[0] = NUM_COL*NUM_ROWS;
+    num_neurons[1] = 32;
+    num_neurons[2] = 10;
 
-    // Get number of neurons per layer
-    //for(i=0;i<num_layers;i++)
-    //{
-    //    printf("Enter number of neurons in layer[%d]: \n",i+1);
-    //    scanf("%d",&num_neurons[i]);
-    //}
+    /* => Total Number of Parameters is 25,450 */
 
-    //printf("\n");
-    for(int i=0; i<num_layers;i++){
-        if(s<num_neurons[i]) {
-            s = num_neurons[i];
-        }
-    }
+    // Learning rate
+    alpha = 0.15;
+
 
     // Initialize the neural network module
     if(init()!= SUCCESS_INIT)
@@ -66,36 +62,56 @@ int main(int argc,char * argv[])
         exit(0);
     }
 
-    printf("Enter the learning rate (Usually 0.15): \n");
-    scanf("%f",&alpha);
-    printf("\n");
 
-    printf("Enter the number of training examples: \n");
-    scanf("%d",&num_training_ex);
-    printf("\n");
+    int num_training_ex = 2000;
 
-    input = (float**) malloc(num_training_ex * sizeof(float*));
+
+    /****** Mofidy this part to take inputs from file directly ******/
+
+    input = (unsigned char **) malloc(num_training_ex * sizeof(unsigned char *));
     for(i=0;i<num_training_ex;i++)
     {
-        input[i] = (float*)malloc(num_neurons[0] * sizeof(float));
+        input[i] = (unsigned char *) malloc(num_neurons[0] * sizeof(unsigned char));
     }
 
-    desired_outputs = (float**) malloc(num_training_ex* sizeof(float*));
-    for(i=0;i<num_training_ex;i++)
+    /************************Desired outputs Modify as well ***********/
+    desired_outputs = (unsigned char **) malloc(num_training_ex* sizeof(unsigned char*));
+    for(i=0; i<num_training_ex; i++)
     {
-        desired_outputs[i] = (float*)malloc(num_neurons[num_layers-1] * sizeof(float));
+        desired_outputs[i] = (unsigned char *) malloc(num_neurons[num_layers-1] * sizeof(unsigned char));
     }
+    /******************************************************************/
 
     cost = (float *) malloc(num_neurons[num_layers-1] * sizeof(float));
     memset(cost,0,num_neurons[num_layers-1]*sizeof(float));
 
-    // Get Training Examples
-    get_inputs();
+    // Get Training Examples #Modify
+    get_inputs(input, 1);
 
-    // Get Output Labels
-    get_desired_outputs();
+    // Get Output Labels #Modify
+    get_desired_outputs(desired_outputs, 1);
 
     train_neural_net();
+
+
+
+    /****** Mofidy this part to take inputs from file directly ******/
+
+    input_test = (unsigned char **) malloc(num_testSamples_ex * sizeof(unsigned char *));
+    for(int i=0;i<num_testSamples_ex;i++)
+    {
+        input_test[i] = (unsigned char *) malloc(num_neurons[0] * sizeof(unsigned char));
+    }
+
+    /************************Desired outputs Modify as well ***********/
+    desired_outputs_test = (unsigned char **) malloc(num_testSamples_ex* sizeof(unsigned char*));
+    for(int i=0; i<num_testSamples_ex; i++)
+    {
+        desired_outputs_test[i] = (unsigned char *) malloc(num_neurons[num_layers-1] * sizeof(unsigned char));
+    }
+    /******************************************************************/
+
+
     test_nn();
 
     if(dinit()!= SUCCESS_DINIT)
@@ -120,49 +136,26 @@ int init()
 }
 
 //Get Inputs
-void  get_inputs()
+void  get_inputs(unsigned char **dataInput, int isTrain)
 {
-    int i,j;
-
-        for(i=0;i<num_training_ex;i++)
-        {
-            printf("Enter the Inputs for training example[%d]:\n",i);
-
-            for(j=0;j<num_neurons[0];j++)
-            {
-                scanf("%f",&input[i][j]);
-                printf("%f\n",input[i][j]);
-                
-            }
-            printf("\n");
-        }
+    /** Get input training data **/
+    loadData(1, 1, dataInput, isTrain);
 }
 
 //Get Labels
-void get_desired_outputs()
+void get_desired_outputs(unsigned char **labels, int isTrain)
 {
-    int i,j;
-    
-    for(i=0;i<num_training_ex;i++)
-    {
-        for(j=0;j<num_neurons[num_layers-1];j++)
-        {
-            printf("Enter the Desired Outputs (Labels) for training example[%d]: \n",i);
-            scanf("%f",&desired_outputs[i][j]);
-            printf("%f\n",desired_outputs[i][j]);
-            printf("\n");
-        }
-    }
+    loadLabels(1, 1, labels, isTrain);
 }
 
 // Feed inputs to input layer
-void feed_input(int i)
+void feed_input(int i, unsigned char **inputSet)
 {
     int j;
 
     for(j=0;j<num_neurons[0];j++)
     {
-        lay[0].neu[j].actv = input[i][j];
+        lay[0].neu[j].actv = inputSet[i][j];
         //printf("Input: %f\n",lay[0].neu[j].actv);
     }
 }
@@ -283,7 +276,7 @@ void train_neural_net(void)
         }
         for(i=0;i<num_training_ex;i++)
         {
-            feed_input(i);
+            feed_input(i, input);
             forward_prop(0);
             compute_cost(i);
             back_prop(i,first_run);
@@ -353,11 +346,11 @@ void forward_prop(int out)
     {   
         for(j=0;j<num_neurons[i];j++)
         {
-            lay[i].neu[j].z = lay[i].neu[j].bias;
+            lay[i].neu[j].z = lay[i - 1].neu[j].bias;
 
             for(k=0;k<num_neurons[i-1];k++)
             {
-                lay[i].neu[j].z  = lay[i].neu[j].z + ((lay[i-1].neu[k].out_weights[j])* (lay[i-1].neu[k].actv));
+                lay[i].neu[j].z  = lay[i].neu[j].z + ((lay[i-1].neu[k].out_weights[j]) * (lay[i-1].neu[k].actv));
             }
 
             // Relu Activation Function for Hidden Layers
@@ -380,7 +373,7 @@ void forward_prop(int out)
                 lay[i].neu[j].actv = 1/(1+exp(-lay[i].neu[j].z));
                 if(out) {
                     printf("Output: %d\n", (int) round(lay[i].neu[j].actv));
-                    //printf("\n");
+                    printf("\n");
                 }
             }
         }
@@ -418,7 +411,7 @@ void back_prop(int p, int first_run)
 
         for(k=0;k<num_neurons[num_layers-2];k++)
         {   
-            lay[num_layers-2].neu[k].dw[j] = (lay[num_layers-1].neu[j].dz * lay[num_layers-2].neu[k].actv);
+            lay[num_layers-2].neu[k].dw[j] = lay[num_layers-2].neu[k].dw[j] + (lay[num_layers-1].neu[j].dz * lay[num_layers-2].neu[k].actv);
             if(first_run)
                 dweights[num_layers-2][k][j] =0;
             dweights[num_layers-2][k][j] +=lay[num_layers-2].neu[k].dw[j];
@@ -426,7 +419,7 @@ void back_prop(int p, int first_run)
             //TODO do we also need d actv to update weights.
         }
             
-        lay[num_layers-1].neu[j].dbias = lay[num_layers-1].neu[j].dz;
+        lay[num_layers-1].neu[j].dbias = lay[num_layers-1].neu[j].dbias + lay[num_layers-1].neu[j].dz;
         if(first_run)
             dbias[num_layers-1][j]=0;
         dbias[num_layers-1][j]+=lay[num_layers-1].neu[j].dbias;
@@ -434,7 +427,7 @@ void back_prop(int p, int first_run)
     }
 
     // Hidden Layers
-    for(i=num_layers-1;i>0;i--)
+    for(i=num_layers-2;i>0;i--)
     {
         for(j=0;j<num_neurons[i];j++)
         {
@@ -452,7 +445,8 @@ void back_prop(int p, int first_run)
 
             for(k=0;k<num_neurons[i-1];k++)
             {
-                lay[i-1].neu[k].dw[j] = lay[i].neu[j].dz * lay[i-1].neu[k].actv;
+                lay[i-1].neu[k].dw[j] = lay[i-1].neu[k].dw[j] + lay[i].neu[j].dz * lay[i-1].neu[k].actv;
+
 
                 //printf("actv %f,\n",lay[i-1].neu[k].actv);
                 if(first_run)
@@ -466,7 +460,7 @@ void back_prop(int p, int first_run)
                 }
             }
 
-            lay[i].neu[j].dbias = lay[i].neu[j].dz;
+            lay[i].neu[j].dbias = lay[i].neu[j].dbias + lay[i].neu[j].dz;
             if(first_run)
                 dbias[i][j]=0;
             dbias[i][j]+=lay[i].neu[j].dbias;
@@ -477,21 +471,17 @@ void back_prop(int p, int first_run)
 // Test the trained network
 void test_nn(void) 
 {
-    int i;
-    int number_of_tests ;
-    scanf("%d",&number_of_tests);
+    // Get Training Examples #Modify
+    get_inputs(input_test, 0);
 
-    for(int j=0;j<number_of_tests;j++)
-    {
-        printf("Enter input to test:\n");
+    // Get Output Labels #Modify
+    get_desired_outputs(desired_outputs_test, 0);
 
-        for(i=0;i<num_neurons[0];i++)
-        {
-            scanf("%f",&lay[0].neu[i].actv);
-            printf("%f", lay[0].neu[i].actv);
-        }
+    for (int i = 0; i < num_testSamples_ex; i++){
+        feed_input(i, input_test);
         forward_prop(1);
     }
+
 }
 
 // TODO: Add different Activation functions
@@ -499,8 +489,14 @@ void test_nn(void)
 
 int dinit(void)
 {
-    // TODO:
     // Free up all the structures
+
+    // Free input and output
+    free(input);
+    free(input_test);
+    free(desired_outputs);
+    free(desired_outputs_test);
+
 
     return SUCCESS_DINIT;
 }
