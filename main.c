@@ -5,7 +5,9 @@
 
 #include "readData.h"
 
-
+#define NUM_LAYERS =3
+#define NUM_NEURONS_0 = NUM_COL*NUM_ROWS
+#define NUM_NEURONS_1 = 32
 layer *lay = NULL;
 int num_layers;
 int *num_neurons;
@@ -16,7 +18,6 @@ unsigned char **input;
 unsigned char **desired_outputs;
 unsigned char **input_test;
 unsigned char **desired_outputs_test;
-int num_training_ex;
 int n=1;
 int num_testSamples_ex = 2000;
 int p,P,tag,rc;
@@ -39,14 +40,14 @@ int main(int argc,char * argv[])
 
 
     /**** Initialize parameters ****/
-    num_layers = 3;
+    num_layers = NUM_LAYERS;
 
     num_neurons = (int*) malloc(num_layers * sizeof(int));
     memset(num_neurons, 0,num_layers *sizeof(int));
 
     // Neurons per layer
-    num_neurons[0] = NUM_COL*NUM_ROWS;
-    num_neurons[1] = 32;
+    num_neurons[0] = NUM_NEURONS_0;
+    num_neurons[1] = NUM_NEURONS_1;
     num_neurons[2] = 10;
 
     /* => Total Number of Parameters is 25,450 */
