@@ -5,9 +5,9 @@
 
 #include "readData.h"
 
-#define NUM_LAYERS =3
-#define NUM_NEURONS_0 = NUM_COL*NUM_ROWS
-#define NUM_NEURONS_1 = 32
+#define NUM_LAYERS  3
+#define NUM_NEURONS_0  NUM_COL*NUM_ROWS
+#define NUM_NEURONS_1  32
 layer *lay = NULL;
 int num_layers;
 int *num_neurons;
@@ -21,10 +21,10 @@ unsigned char **desired_outputs_test;
 int n=1;
 int num_testSamples_ex = 2000;
 int p,P,tag,rc;
-float weights[NUM_LAYER][NUM_NEURONS_0][NUM_NEURONS_1];
-float dweights[NUM_LAYER][NUM_NEURONS_0][NUM_NEURONS_1];
-float bias[NUM_LAYER][NUM_NEURONS_0];
-float dbias[NUM_LAYER][NUM_NEURONS_0];
+float weights[NUM_LAYERS][NUM_NEURONS_0][NUM_NEURONS_1];
+float dweights[NUM_LAYERS][NUM_NEURONS_0][NUM_NEURONS_1];
+float bias[NUM_LAYERS][NUM_NEURONS_0];
+float dbias[NUM_LAYERS][NUM_NEURONS_0];
 int s=0;
 MPI_Status  status;
 
