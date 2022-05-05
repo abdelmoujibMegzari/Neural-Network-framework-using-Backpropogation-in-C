@@ -1,5 +1,6 @@
 LDFLAGS = -pthread -lpthread
 CFLAGS = -g -Wall -Werror
+CC = mpicc
 backprop: backprop.o layer.o neuron.o readData.o
 	$(CC) $(LDFLAGS) -o backprop main.o layer.o neuron.o readData.o -lm
 
