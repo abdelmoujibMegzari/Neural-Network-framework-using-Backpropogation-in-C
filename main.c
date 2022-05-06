@@ -14,7 +14,8 @@ int *num_neurons;
 float alpha;
 float *cost;
 float full_cost;
-unsigned char **input; **desired_outputs;
+unsigned char **input;
+unsigned char **desired_outputs;
 unsigned char **input_test;
 unsigned char **desired_outputs_test;
 int num_training_ex;
@@ -87,7 +88,7 @@ int main(int argc,char * argv[])
     desired_outputs = (unsigned char **) malloc(num_training_ex* sizeof(unsigned char*));
     for(i=0; i<num_training_ex; i++)
     {
-        desired_outputs[i] = (unsigned char *) malloc(num_neurons[num_layers-1] * sizeof(unsigned char));
+        desired_outputs[i] = (unsigned char *) calloc(num_neurons[num_layers-1] , sizeof(unsigned char));
     }
     /******************************************************************/
 
@@ -99,7 +100,8 @@ int main(int argc,char * argv[])
 
     // Get Output Labels #Modify
     get_desired_outputs(desired_outputs, 1);
-    printf("%f\n",desired_outputs[0][0]);
+     for(int v=0;v<10;v++)
+        printf("%d\n",desired_outputs[0][v]);
 
     train_neural_net();
 
@@ -117,7 +119,7 @@ int main(int argc,char * argv[])
     desired_outputs_test = (unsigned char **) malloc(num_testSamples_ex* sizeof(unsigned char*));
     for(int i=0; i<num_testSamples_ex; i++)
     {
-        desired_outputs_test[i] = (unsigned char *) malloc(num_neurons[num_layers-1] * sizeof(unsigned char));
+        desired_outputs_test[i] = (unsigned char *) calloc(num_neurons[num_layers-1] ,sizeof(unsigned char));
     }
     /******************************************************************/
 
@@ -440,7 +442,7 @@ void back_prop(int p, int first_run)
             lay[num_layers-2].neu[k].dw[j] = lay[num_layers-2].neu[k].dw[j] + (lay[num_layers-1].neu[j].dz * lay[num_layers-2].neu[k].actv);
             if(first_run)
                 dweights[num_layers-2][k][j] =0;
-            dweights[num_layers-2][k][j] +=lay[num_layers-2].neu[k].dw[j]-1;
+            dweights[num_layers-2][k][j] +=lay[num_layers-2].neu[k].dw[j];
             lay[num_layers-2].neu[k].dactv = lay[num_layers-2].neu[k].out_weights[j] * lay[num_layers-1].neu[j].dz;
         }
             
@@ -476,7 +478,7 @@ void back_prop(int p, int first_run)
                 //printf("actv %f,\n",lay[i-1].neu[k].actv);
                 if(first_run)
                     dweights[i-1][k][j]=0;
-                dweights[i-1][k][j]+=lay[i-1].neu[k].dw[j]-1;
+                dweights[i-1][k][j]+=lay[i-1].neu[k].dw[j];
                 //printf("%f,\n",lay[i-1].neu[k].dw[j]);
 
                 if(i>1)
