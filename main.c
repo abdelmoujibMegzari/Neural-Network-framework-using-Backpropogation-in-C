@@ -384,6 +384,7 @@ void test_nn(void)
     get_desired_outputs(desired_outputs_test, 0);
 
     for (int i = 0; i < num_testSamples_ex; i++){
+        printf("Input %d", i);
         feed_input(i, input_test);
         forward_prop();
     }
