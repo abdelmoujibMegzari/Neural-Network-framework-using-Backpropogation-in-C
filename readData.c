@@ -76,7 +76,7 @@ void loadLabels(int rank, int proc, unsigned char **data, int isTrain){
     }
 
     /** Chosen to train on a small dataset **/
-    localItems = 2000;
+    //localItems = 2000;
     /****************************************/
     fseek(trainData, offset, SEEK_CUR);
     
@@ -156,7 +156,7 @@ void loadData(int rank, int proc, unsigned char **data, int isTrain){
         localItems = (NUM_ITEMS_TEST/proc);
     }
     /* Used to train on a small dataset To remove later */
-    localItems = 2000;
+    //localItems = 2000;
     /***************************/
     
     fseek(trainData, offset, SEEK_CUR);
