@@ -29,8 +29,8 @@ void forward_prop(int out);
 void compute_cost(int i);
 void back_prop(int p, int first_run);
 void update_weights(void);
-void get_inputs(unsigned char ** inputs, int isTrain);
-void get_desired_outputs(unsigned char ** labels, int isTrain);
+void get_inputs(unsigned char ** inputs,int rank, int processes, int isTrain);
+void get_desired_outputs(unsigned char ** labels,int rank, int processes, int isTrain);
 void test_nn(void);
 
 int initialize_dummy_weights(void);
