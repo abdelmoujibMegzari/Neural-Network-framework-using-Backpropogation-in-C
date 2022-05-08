@@ -8,6 +8,8 @@
 #define NUM_LAYERS  3
 #define NUM_NEURONS_0  NUM_COL*NUM_ROWS
 #define NUM_NEURONS_1  32
+#define NUM_NEURONS_2 10
+
 layer *lay = NULL;
 int num_layers;
 int *num_neurons;
@@ -20,7 +22,7 @@ unsigned char **input_test;
 unsigned char **desired_outputs_test;
 int num_training_ex;
 int n=1;
-int num_testSamples_ex = 2000;
+int num_testSamples_ex;
 int p,P,tag,rc;
 float weights[NUM_LAYERS][NUM_NEURONS_0][NUM_NEURONS_1];
 float dweights[NUM_LAYERS][NUM_NEURONS_0][NUM_NEURONS_1];
@@ -73,10 +75,11 @@ int main(int argc,char * argv[])
         printf("Error in Initialization...\n");
         exit(0);
     }
-    num_training_ex = 2000;
 
+    num_training_ex = NUM_ITEMS_TRAIN/P;
+    num_testSamples_ex = NUM_ITEMS_TEST/P;
 
-    /****** Mofidy this part to take inputs from file directly ******/
+    /****** Allocate memory for input data ******/
 
     input = (unsigned char **) malloc(num_training_ex * sizeof(unsigned char *));
     for(i=0;i<num_training_ex;i++)
@@ -84,7 +87,7 @@ int main(int argc,char * argv[])
         input[i] = (unsigned char *) malloc(num_neurons[0] * sizeof(unsigned char));
     }
 
-    /************************Desired outputs Modify as well ***********/
+    /***************** Allocate memory for output data ***********/
     desired_outputs = (unsigned char **) malloc(num_training_ex* sizeof(unsigned char*));
     for(i=0; i<num_training_ex; i++)
     {
@@ -96,10 +99,10 @@ int main(int argc,char * argv[])
     memset(cost,0,num_neurons[num_layers-1]*sizeof(float));
 
     // Get Training Examples #Modify
-    get_inputs(input, 1);
+    get_inputs(input, p, P, 1);
 
     // Get Output Labels #Modify
-    get_desired_outputs(desired_outputs, 1);
+    get_desired_outputs(desired_outputs, p, P, 1);
      for(int v=0;v<10;v++)
         printf("%d\n",desired_outputs[0][v]);
 
@@ -123,8 +126,9 @@ int main(int argc,char * argv[])
     }
     /******************************************************************/
 
-
-    test_nn();
+    if (p == 0){
+        test_nn();
+    }
 
     if(dinit()!= SUCCESS_DINIT)
     {
@@ -148,16 +152,16 @@ int init()
 }
 
 //Get Inputs
-void  get_inputs(unsigned char **dataInput, int isTrain)
+void  get_inputs(unsigned char **dataInput, int rank, int numProc, int isTrain)
 {
     /** Get input training data **/
-    loadData(1, 1, dataInput, isTrain);
+    loadData(rank, numProc, dataInput, isTrain);
 }
 
 //Get Labels
-void get_desired_outputs(unsigned char **labels, int isTrain)
+void get_desired_outputs(unsigned char **labels, int rank, int numProc, int isTrain)
 {
-    loadLabels(1, 1, labels, isTrain);
+    loadLabels(rank, numProc, labels, isTrain);
 }
 
 // Feed inputs to input layer
@@ -499,10 +503,10 @@ void back_prop(int p, int first_run)
 void test_nn(void) 
 {
     // Get Training Examples #Modify
-    get_inputs(input_test, 0);
+    get_inputs(input_test, 1, 1, 0);
 
     // Get Output Labels #Modify
-    get_desired_outputs(desired_outputs_test, 0);
+    get_desired_outputs(desired_outputs_test, 1, 1, 0);
 
     for (int i = 0; i < num_testSamples_ex; i++){
         feed_input(i, input_test);

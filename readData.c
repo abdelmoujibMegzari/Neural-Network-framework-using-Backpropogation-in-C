@@ -164,7 +164,7 @@ void loadData(int rank, int proc, unsigned char **data, int isTrain){
     for (int i =0; i < localItems; i++){
         int read = fread((void *) data[i], 1, NUM_COL*NUM_ROWS, trainData);
         if (read !=  NUM_COL*NUM_ROWS){
-            perror("Data couldn't load correctly \n");
+            perror("Data couldn't be loaded correctly \n");
         }
     }
 }
