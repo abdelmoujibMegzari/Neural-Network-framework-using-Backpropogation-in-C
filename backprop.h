@@ -32,6 +32,7 @@ void update_weights(void);
 void get_inputs(unsigned char ** inputs,int rank, int processes, int isTrain);
 void get_desired_outputs(unsigned char ** labels,int rank, int processes, int isTrain);
 void test_nn(void);
+int bitflip(int rank,int step);
 
 int initialize_dummy_weights(void);
 

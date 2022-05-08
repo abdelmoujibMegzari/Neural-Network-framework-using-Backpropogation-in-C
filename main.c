@@ -2,6 +2,7 @@
 #include "layer.h"
 #include "neuron.h"
 #include <mpi.h>
+#include <time.h>
 
 #include "readData.h"
 
@@ -26,8 +27,10 @@ int num_testSamples_ex;
 int p,P,tag,rc;
 float weights[NUM_LAYERS][NUM_NEURONS_0][NUM_NEURONS_1];
 float dweights[NUM_LAYERS][NUM_NEURONS_0][NUM_NEURONS_1];
+float tmpdw[NUM_LAYERS][NUM_NEURONS_0][NUM_NEURONS_1];
 float bias[NUM_LAYERS][NUM_NEURONS_0];
 float dbias[NUM_LAYERS][NUM_NEURONS_0];
+float tmpdb[NUM_LAYERS][NUM_NEURONS_0];
 int s=0;
 MPI_Status  status;
 
@@ -147,7 +150,7 @@ int main(int argc,char * argv[])
     /******************************************************************/
 
     if (p == 0){
-        test_nn();
+        //test_nn();
     }
 
     if(dinit()!= SUCCESS_DINIT)
@@ -286,29 +289,29 @@ void train_neural_net(void)
     int i;
     int it=0;
     // Gradient Descent
+    if(p==0){
+        //TODO IMPROVE SCATRING METHOD TO be in log(N)
+        for(int j=1;j<P;j++){
+            rc = MPI_Send(weights, NUM_LAYERS*NUM_NEURONS_0*NUM_NEURONS_1, MPI_REAL, j, tag, MPI_COMM_WORLD);
+            rc = MPI_Send(bias, NUM_LAYERS*NUM_NEURONS_0, MPI_REAL, j, tag, MPI_COMM_WORLD);
+        }
+    }else{
+
+        rc = MPI_Recv(weights, NUM_LAYERS*NUM_NEURONS_0*NUM_NEURONS_1, MPI_REAL, 0, tag, MPI_COMM_WORLD, &status);
+        rc = MPI_Recv(bias, NUM_LAYERS*NUM_NEURONS_0, MPI_REAL, 0, tag, MPI_COMM_WORLD, &status);
+        for(int l=0;l<num_layers-1;l++){
+            for(int j=0; j<num_neurons[l]; j++){
+                for(int k=0;k<num_neurons[l+1];k++){
+                    lay[l].neu[j].out_weights[k]=weights[l][j][k];
+                }
+                lay[l].neu[j].bias=bias[l][j];
+            }
+        }
+    }
     for(it=0;it<5;it++)
     {
         //printf("%d\n",it);
         int first_run=1;
-        if(p==0){
-            //TODO IMPROVE SCATRING METHOD TO be in log(N)
-            for(int j=1;j<P;j++){
-                rc = MPI_Send(weights, NUM_LAYERS*NUM_NEURONS_0*NUM_NEURONS_1, MPI_REAL, j, tag, MPI_COMM_WORLD);
-                rc = MPI_Send(bias, NUM_LAYERS*NUM_NEURONS_0, MPI_REAL, j, tag, MPI_COMM_WORLD);
-            }
-        }else{
-
-            rc = MPI_Recv(weights, NUM_LAYERS*NUM_NEURONS_0*NUM_NEURONS_1, MPI_REAL, 0, tag, MPI_COMM_WORLD, &status);
-            rc = MPI_Recv(bias, NUM_LAYERS*NUM_NEURONS_0, MPI_REAL, 0, tag, MPI_COMM_WORLD, &status);
-            for(int l=0;l<num_layers-1;l++){
-                for(int j=0; j<num_neurons[l]; j++){
-                    for(int k=0;k<num_neurons[l+1];k++){
-                        lay[l].neu[j].out_weights[k]=weights[l][j][k];
-                    }
-                    lay[l].neu[j].bias=bias[l][j];
-                }
-            }
-        }
         for(i=0;i<num_training_ex;i++)
         {
             feed_input(i, input);
@@ -317,51 +320,81 @@ void train_neural_net(void)
             back_prop(i,first_run);
             first_run=0;
         }
-        if(p==0){
-            //TODO IMPROVE gathering METHOD TO be in log(N)
+        for(int step=0; step< log2(P);step++){
+            int receiver =  bitflip(p,step);
+           if(p>receiver){
+                   printf("%d-->%d:sending:%f\n",p,receiver,dweights[1][1][0]);
+                   rc = MPI_Send(dweights, NUM_LAYERS*NUM_NEURONS_0*NUM_NEURONS_1, MPI_REAL, receiver, tag, MPI_COMM_WORLD);
+                   rc = MPI_Send(dbias, NUM_LAYERS*NUM_NEURONS_0, MPI_REAL, receiver, tag, MPI_COMM_WORLD);
+                   rc = MPI_Recv(tmpdw, NUM_LAYERS * NUM_NEURONS_0 * NUM_NEURONS_1 , MPI_REAL, receiver, tag, MPI_COMM_WORLD,
+                                 &status);
+                   rc = MPI_Recv(tmpdb, NUM_LAYERS * NUM_NEURONS_0, MPI_REAL, receiver, tag, MPI_COMM_WORLD, &status);
+                   printf("%d-->%d:receivedValue:%f\n",receiver,p,tmpdw[1][1][0]);
+
+           }else{
+               rc = MPI_Recv(tmpdw, NUM_LAYERS * NUM_NEURONS_0 * NUM_NEURONS_1 , MPI_REAL, receiver, tag, MPI_COMM_WORLD,
+                             &status);
+               rc = MPI_Recv(tmpdb, NUM_LAYERS * NUM_NEURONS_0, MPI_REAL, receiver, tag, MPI_COMM_WORLD, &status);
+               printf("%d-->%d:receivedValue:%f\n",receiver,p,tmpdw[1][1][0]);
+               printf("%d-->%d:sending:%f\n",p,receiver,dweights[1][1][0]);
+               rc = MPI_Send(dweights, NUM_LAYERS*NUM_NEURONS_0*NUM_NEURONS_1, MPI_REAL, receiver, tag, MPI_COMM_WORLD);
+               rc = MPI_Send(dbias, NUM_LAYERS*NUM_NEURONS_0, MPI_REAL, receiver, tag, MPI_COMM_WORLD);
+
+           }
             for (int i = 0; i < num_layers - 1; i++) {
                 for (int j = 0; j < num_neurons[i]; j++) {
                     for (int k = 0; k < num_neurons[i + 1]; k++) {
-                        //lay[i].neu[j].dw[k] = dweights[i][j][k];
-                        lay[i].neu[j].dw[k] = 0;
-                        //printf("%f, ",lay[i].neu[j].dw[k]);
-
+                        lay[i].neu[j].dw[k] += tmpdw[i][j][k];
+                        dweights[i][j][k]=lay[i].neu[j].dw[k];
                     }
-                    //lay[i].neu[j].dbias = dbias[i][j];
-                    lay[i].neu[j].dbias = 0;
+                    lay[i].neu[j].dbias += tmpdb[i][j];
+                    dbias[i][j]=lay[i].neu[j].dbias;
                 }
             }
-            printf("%d-->%d:receivedValue:%f\n",0,p,dweights[1][1][0]);
-            for(int s=1;s<P;s++) {
-                rc = MPI_Recv(dweights, NUM_LAYERS * NUM_NEURONS_0 * NUM_NEURONS_1 , MPI_REAL, s, tag, MPI_COMM_WORLD,
-                              &status);
-                rc = MPI_Recv(dbias, NUM_LAYERS * NUM_NEURONS_0, MPI_REAL, s, tag, MPI_COMM_WORLD, &status);
-                printf("%d-->%d:receivedValue:%f\n",s,p,dweights[1][1][0]);
-                for (int i = 0; i < num_layers - 1; i++) {
-                    for (int j = 0; j < num_neurons[i]; j++) {
-                        for (int k = 0; k < num_neurons[i + 1]; k++) {
-                            lay[i].neu[j].dw[k] += dweights[i][j][k];
-                            //printf("%f, ",lay[i].neu[j].dw[k]);
-
-                        }
-                        lay[i].neu[j].dbias += dbias[i][j];
-                    }
-                }
-            }
-            //for (int i = 0; i < num_layers - 1; i++) {
-            //    for (int j = 0; j < num_neurons[i]; j++) {
-            //        for (int k = 0; k < num_neurons[i + 1]; k++) {
-            //            //printf("%f, ",dweights[i][j][k]);
-            //        }
-            //    }
-            //}
-            update_weights();
-        }else{
-
-            printf("%d-->%d:sending:%f\n",p,0,dweights[1][1][0]);
-            rc = MPI_Send(dweights, NUM_LAYERS*NUM_NEURONS_0*NUM_NEURONS_1, MPI_REAL, 0, tag, MPI_COMM_WORLD);
-            rc = MPI_Send(dbias, NUM_LAYERS*NUM_NEURONS_0, MPI_REAL, 0, tag, MPI_COMM_WORLD);
         }
+        update_weights();
+        //if(p==0){
+        //    //TODO IMPROVE gathering METHOD TO be in log(N)
+        //    for (int i = 0; i < num_layers - 1; i++) {
+        //        for (int j = 0; j < num_neurons[i]; j++) {
+        //            for (int k = 0; k < num_neurons[i + 1]; k++) {
+        //                //lay[i].neu[j].dw[k] = dweights[i][j][k];
+        //                lay[i].neu[j].dw[k] = 0;
+        //                //printf("%f, ",lay[i].neu[j].dw[k]);
+
+        //            }
+        //            //lay[i].neu[j].dbias = dbias[i][j];
+        //            lay[i].neu[j].dbias = 0;
+        //        }
+        //    }
+        //    printf("%d-->%d:receivedValue:%f\n",0,p,dweights[1][1][0]);
+        //    for(int s=1;s<P;s++) {
+        //        rc = MPI_Recv(dweights, NUM_LAYERS * NUM_NEURONS_0 * NUM_NEURONS_1 , MPI_REAL, s, tag, MPI_COMM_WORLD,
+        //                      &status);
+        //        rc = MPI_Recv(dbias, NUM_LAYERS * NUM_NEURONS_0, MPI_REAL, s, tag, MPI_COMM_WORLD, &status);
+        //        printf("%d-->%d:receivedValue:%f\n",s,p,dweights[1][1][0]);
+        //        for (int i = 0; i < num_layers - 1; i++) {
+        //            for (int j = 0; j < num_neurons[i]; j++) {
+        //                for (int k = 0; k < num_neurons[i + 1]; k++) {
+        //                    lay[i].neu[j].dw[k] += dweights[i][j][k];
+        //                    //printf("%f, ",lay[i].neu[j].dw[k]);
+
+        //                }
+        //                lay[i].neu[j].dbias += dbias[i][j];
+        //            }
+        //        }
+        //    }
+        //    //for (int i = 0; i < num_layers - 1; i++) {
+        //    //    for (int j = 0; j < num_neurons[i]; j++) {
+        //    //        for (int k = 0; k < num_neurons[i + 1]; k++) {
+        //    //            //printf("%f, ",dweights[i][j][k]);
+        //    //        }
+        //    //    }
+        //    //}
+        //    update_weights();
+        //}else{
+
+        //}
 
     }
 }
@@ -552,4 +585,8 @@ int dinit(void)
 
 
     return SUCCESS_DINIT;
+}
+
+int bitflip(int rank,int step){
+    return rank^(int)pow(2,step);
 }
