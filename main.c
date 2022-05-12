@@ -39,6 +39,12 @@ int main(int argc,char * argv[])
     rc = MPI_Comm_size(MPI_COMM_WORLD,&P);
     rc = MPI_Comm_rank(MPI_COMM_WORLD,&p);
     tag =45;
+    if(p==0) {
+        time_t seconds;
+        seconds = time(NULL);
+        printf("%d,", P);
+        printf("%ld,", seconds);
+    }
 
 
     for(int l=0;l<NUM_LAYERS;l++){
@@ -66,7 +72,7 @@ int main(int argc,char * argv[])
     /* => Total Number of Parameters is 25,450 */
 
     // Learning rate
-    alpha = 0.15;
+    alpha = 0.15/10000;
 
 
     // Initialize the neural network module
@@ -98,16 +104,30 @@ int main(int argc,char * argv[])
     cost = (float *) malloc(num_neurons[num_layers-1] * sizeof(float));
     memset(cost,0,num_neurons[num_layers-1]*sizeof(float));
 
+    if(p==0) {
+        time_t seconds;
+        seconds = time(NULL);
+        printf("%ld,", seconds);
+    }
     // Get Training Examples #Modify
     get_inputs(input, p, P, 1);
 
     // Get Output Labels #Modify
     get_desired_outputs(desired_outputs, p, P, 1);
      for(int v=0;v<10;v++)
-        printf("%d\n",desired_outputs[0][v]);
+        //printf("%d\n",desired_outputs[0][v]);
 
+    if(p==0) {
+        time_t seconds;
+        seconds = time(NULL);
+        printf("%ld,", seconds);
+    }
     train_neural_net();
-
+    if(p==0) {
+        time_t seconds;
+        seconds = time(NULL);
+        printf("%ld\n", seconds);
+    }
 
 
     /****** Mofidy this part to take inputs from file directly ******/
@@ -127,13 +147,14 @@ int main(int argc,char * argv[])
     /******************************************************************/
 
     if (p == 0){
-        test_nn();
+        //test_nn();
     }
 
     if(dinit()!= SUCCESS_DINIT)
     {
         printf("Error in Dinitialization...\n");
     }
+    //printf("\n");
 
     return 0;
 }
@@ -147,7 +168,7 @@ int init()
         return ERR_INIT;
     }
 
-    printf("Neural Network Created Successfully...\n\n");
+    //printf("Neural Network Created Successfully...\n\n");
     return SUCCESS_INIT;
 }
 
@@ -198,10 +219,10 @@ int create_architecture()
 
             //printf("Neuron %d in Layer %d created\n",j+1,i+1);
         }
-        printf("\n");
+        //printf("\n");
     }
 
-    printf("\n");
+    //printf("\n");
 
     // Initialize the weights
     if(p==0) {
@@ -225,7 +246,7 @@ int initialize_weights(void)
         return ERR_INIT_WEIGHTS;
     }
 
-    printf("Initializing weights...\n");
+    //printf("Initializing weights...\n");
 
     for(i=0;i<num_layers-1;i++)
     {
@@ -236,7 +257,7 @@ int initialize_weights(void)
             {
                 // Initialize Output Weights for each neuron
 
-                lay[i].neu[j].out_weights[k] = ((double)rand())/((double)RAND_MAX);
+                lay[i].neu[j].out_weights[k] = ((double)rand())/(10000*((double)RAND_MAX));
                 weights[i][j][k]=lay[i].neu[j].out_weights[k];
                // printf("%d:w[%d][%d]: %f\n",k,i,j, lay[i].neu[j].out_weights[k]);
                 lay[i].neu[j].dw[k] = 0.0;
@@ -245,12 +266,12 @@ int initialize_weights(void)
 
             if(i>0) 
             {
-                lay[i].neu[j].bias = ((double)rand())/((double)RAND_MAX);
+                lay[i].neu[j].bias = ((double)rand())/(10000*((double)RAND_MAX));
                 bias[i][j]=lay[i].neu[j].bias;
             }
         }
     }   
-    printf("\n");
+    //printf("\n");
     
     for (j=0; j<num_neurons[num_layers-1]; j++)
     {
@@ -266,7 +287,7 @@ void train_neural_net(void)
     int i;
     int it=0;
     // Gradient Descent
-    for(it=0;it<5;it++)
+    for(it=0;it<10000;it++)
     {
         //printf("%d\n",it);
         int first_run=1;
@@ -302,19 +323,21 @@ void train_neural_net(void)
             for (int i = 0; i < num_layers - 1; i++) {
                 for (int j = 0; j < num_neurons[i]; j++) {
                     for (int k = 0; k < num_neurons[i + 1]; k++) {
-                        lay[i].neu[j].dw[k] = dweights[i][j][k];
+                        //lay[i].neu[j].dw[k] = dweights[i][j][k];
+                        lay[i].neu[j].dw[k] = 0;
                         //printf("%f, ",lay[i].neu[j].dw[k]);
 
                     }
-                    lay[i].neu[j].dbias = dbias[i][j];
+                    //lay[i].neu[j].dbias = dbias[i][j];
+                    lay[i].neu[j].dbias = 0;
                 }
             }
-            printf("%d-->%d:receivedValue:%f\n",0,p,dweights[1][1][0]);
+            //printf("%d-->%d:receivedValue:%f\n",0,p,dweights[1][1][0]);
             for(int s=1;s<P;s++) {
                 rc = MPI_Recv(dweights, NUM_LAYERS * NUM_NEURONS_0 * NUM_NEURONS_1 , MPI_REAL, s, tag, MPI_COMM_WORLD,
                               &status);
                 rc = MPI_Recv(dbias, NUM_LAYERS * NUM_NEURONS_0, MPI_REAL, s, tag, MPI_COMM_WORLD, &status);
-                printf("%d-->%d:receivedValue:%f\n",s,p,dweights[1][1][0]);
+                //printf("%d-->%d:receivedValue:%f\n",s,p,dweights[1][1][0]);
                 for (int i = 0; i < num_layers - 1; i++) {
                     for (int j = 0; j < num_neurons[i]; j++) {
                         for (int k = 0; k < num_neurons[i + 1]; k++) {
@@ -336,7 +359,7 @@ void train_neural_net(void)
             update_weights();
         }else{
 
-            printf("%d-->%d:sending:%f\n",p,0,dweights[1][1][0]);
+            //printf("%d-->%d:sending:%f\n",p,0,dweights[1][1][0]);
             rc = MPI_Send(dweights, NUM_LAYERS*NUM_NEURONS_0*NUM_NEURONS_1, MPI_REAL, 0, tag, MPI_COMM_WORLD);
             rc = MPI_Send(dbias, NUM_LAYERS*NUM_NEURONS_0, MPI_REAL, 0, tag, MPI_COMM_WORLD);
         }
@@ -350,7 +373,7 @@ void update_weights(void)
 {
     int i,j,k;
 
-    printf("oldvalue:%f\n", lay[1].neu[1].out_weights[0]);
+    //printf("oldvalue:%f\n", lay[1].neu[1].out_weights[0]);
     for(i=0;i<num_layers-1;i++)
     {
         for(j=0;j<num_neurons[i];j++)
@@ -367,7 +390,7 @@ void update_weights(void)
             bias[i][j]=lay[i].neu[j].bias;
         }
     }
-    printf("newValue:%f\n", lay[1].neu[1].out_weights[0]);
+    //printf("newValue:%f\n", lay[1].neu[1].out_weights[0]);
 }
 
 void forward_prop(int out)
@@ -404,7 +427,7 @@ void forward_prop(int out)
             {
                 lay[i].neu[j].actv = 1/(1+exp(-lay[i].neu[j].z));
                 if(out) {
-                    printf("Output: %d\n", (int) round(lay[i].neu[j].actv));
+                    printf("Output %d: %d\n", j,(int) round(lay[i].neu[j].actv));
                     printf("\n");
                 }
             }
@@ -510,7 +533,7 @@ void test_nn(void)
 
     for (int i = 0; i < num_testSamples_ex; i++){
         feed_input(i, input_test);
-        forward_prop(0);
+        forward_prop(1);
     }
 }
 
