@@ -512,7 +512,6 @@ void test_nn(void)
         feed_input(i, input_test);
         forward_prop(0);
     }
-
 }
 
 // TODO: Add different Activation functions
