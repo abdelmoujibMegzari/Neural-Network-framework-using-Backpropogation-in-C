@@ -52,7 +52,7 @@ void loadLabels(int rank, int proc, unsigned char **data, int isTrain){
         items = toLowEndian(items);
     }
 
-    printf("Parameters %d, %d \n", magic_number, items);
+    //printf("Parameters %d, %d \n", magic_number, items);
     /* Verification of proper data loading */
     assert(magic_number == MAGIC_LABEL);
 
@@ -122,7 +122,7 @@ void loadData(int rank, int proc, unsigned char **data, int isTrain){
     int x3 = fread((char *) &rows, 1, 4, trainData);
     int x4 = fread((char *) &columns, 1, 4, trainData);
 
-    printf("Read bytes %d %d %d %d\n", x1, x2, x3, x4);
+    //printf("Read bytes %d %d %d %d\n", x1, x2, x3, x4);
     /* Dealing with endianess */
     int n = 1;
     int littleEnd = 0;
@@ -146,7 +146,7 @@ void loadData(int rank, int proc, unsigned char **data, int isTrain){
     assert(rows == NUM_ROWS);
     assert(columns == NUM_COL);
 
-    printf("Cool\n");
+    //printf("Cool\n");
     int offset, localItems;
     if (isTrain == 1){
         offset = (NUM_ITEMS_TRAIN/proc)*NUM_COL*NUM_ROWS*(rank-1);
