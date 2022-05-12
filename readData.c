@@ -68,11 +68,11 @@ void loadLabels(int rank, int proc, unsigned char **data, int isTrain){
     /** Chunk size and offset for the thread **/
     int offset, localItems;
     if (isTrain == 1){
-        offset = (NUM_ITEMS_TRAIN/proc)*(rank-1);
-        localItems = (NUM_ITEMS_TRAIN/proc);
+        offset = (int) (NUM_ITEMS_TRAIN/proc)*(rank-1);
+        localItems = (int) (NUM_ITEMS_TRAIN/proc);
     } else{
-        offset = (NUM_ITEMS_TEST/proc)*(rank-1);
-        localItems = (NUM_ITEMS_TEST/proc);      
+        offset = (int) (NUM_ITEMS_TEST/proc)*(rank-1);
+        localItems = (int) (NUM_ITEMS_TEST/proc);      
     }
 
     /** Chosen to train on a small dataset **/
@@ -149,11 +149,11 @@ void loadData(int rank, int proc, unsigned char **data, int isTrain){
     //printf("Cool\n");
     int offset, localItems;
     if (isTrain == 1){
-        offset = (NUM_ITEMS_TRAIN/proc)*NUM_COL*NUM_ROWS*(rank-1);
-        localItems = (NUM_ITEMS_TRAIN/proc);
+        offset = (int) (NUM_ITEMS_TRAIN/proc)*NUM_COL*NUM_ROWS*(rank-1);
+        localItems = (int) (NUM_ITEMS_TRAIN/proc);
     } else{
-        offset = (NUM_ITEMS_TEST/proc)*NUM_COL*NUM_ROWS*(rank-1);
-        localItems = (NUM_ITEMS_TEST/proc);
+        offset = (int) (NUM_ITEMS_TEST/proc)*NUM_COL*NUM_ROWS*(rank-1);
+        localItems = (int) (NUM_ITEMS_TEST/proc);
     }
     /* Used to train on a small dataset To remove later */
     //localItems = 2000;
